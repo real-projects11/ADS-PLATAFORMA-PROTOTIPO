@@ -127,15 +127,25 @@ export default function Dashboard() {
 
   return (
     <div className="container with-bottom-nav">
-      <div className="header">
-        <h1>Hola, {user.username}</h1>
+      <div className="app-header">
+        <div>
+          <span className="app-header-eyebrow">Bienvenido</span>
+          <h1>Hola, {user.username}</h1>
+        </div>
         <span className="points-pill">★ {user.points}</span>
       </div>
 
       {tab === 'ganar' && (
-        <div className="card">
+        <div className="card hero-card">
+          <div className="hero-icon">
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="9" fill="#ffb100" />
+              <text x="12" y="16.5" textAnchor="middle" fontSize="12" fontWeight="700" fill="#1a1305">$</text>
+            </svg>
+          </div>
           <p className={`points${bump ? ' bump' : ''}`}>{user.points}</p>
           <p className="points-label">puntos acumulados</p>
+          <span className="reward-pill">+10 puntos por anuncio visto</span>
 
           <div className="ad-ring-wrap">
             <div className="ad-ring">
@@ -171,11 +181,11 @@ export default function Dashboard() {
             </div>
 
             {!adSessionId && (
-              <button className="ad-cta" onClick={startAd}>Ver anuncio</button>
+              <button className="ad-cta gold-pill" onClick={startAd}>▶ Ver anuncio</button>
             )}
             {ready && (
               <div className="ad-cta pulse">
-                <button className="gold" onClick={claimAd}>Reclamar puntos</button>
+                <button className="gold-pill" onClick={claimAd}>Reclamar puntos</button>
               </div>
             )}
           </div>
