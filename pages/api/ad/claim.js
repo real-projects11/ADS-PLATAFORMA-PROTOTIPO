@@ -2,6 +2,7 @@ import { sql, getUserId, ensureSchema } from '../../../lib/server';
 
 const POINTS_PER_AD = 10;
 const MIN_SECONDS = 15;
+const REFERRAL_BONUS = 5;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método no permitido' });
@@ -42,10 +43,27 @@ export default async function handler(req, res) {
       )
       UPDATE users u SET points = points + ${POINTS_PER_AD}
       FROM ins WHERE u.id = ins.user_id
-      RETURNING u.points
+      RETURNING u.points, u.referred_by
     `;
+    const { points: totalPoints, referred_by: referredBy } = updated.rows[0];
 
-    return res.status(200).json({ ok: true, pointsAwarded: POINTS_PER_AD, totalPoints: updated.rows[0].points });
+    // Si este es el primer anuncio que este usuario reclama, y fue invitado
+    // por alguien, le damos el bono de "referido activo" a quien lo invitó.
+    if (referredBy) {
+      const claimedCount = await sql`
+        SELECT count(*)::int AS n FROM ad_sessions WHERE user_id = ${uid} AND status = 'claimed'
+      `;
+      const isFirstAd = claimedCount.rows[0].n === 1;
+      if (isFirstAd) {
+        await sql`
+          INSERT INTO point_transactions (user_id, delta, reason, ref_type, ref_id)
+          VALUES (${referredBy}, ${REFERRAL_BONUS}, 'Bono por referido activo', 'referral', ${uid})
+        `;
+        await sql`UPDATE users SET points = points + ${REFERRAL_BONUS} WHERE id = ${referredBy}`;
+      }
+    }
+
+    return res.status(200).json({ ok: true, pointsAwarded: POINTS_PER_AD, totalPoints });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Error del servidor.' });
