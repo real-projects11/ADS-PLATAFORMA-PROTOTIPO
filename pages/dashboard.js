@@ -1,0 +1,228 @@
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { useRouter } from 'next/router';
+import BottomNav from '../components/BottomNav';
+
+const MIN_SECONDS = 15;
+const RADIUS = 70;
+const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+
+export default function Dashboard() {
+  const router = useRouter();
+  const [user, setUser] = useState(null);
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState('ganar');
+  const [adSessionId, setAdSessionId] = useState(null);
+  const [secondsLeft, setSecondsLeft] = useState(0);
+  const [message, setMessage] = useState('');
+  const [redeemDesc, setRedeemDesc] = useState('');
+  const [redeemPoints, setRedeemPoints] = useState('');
+  const [bump, setBump] = useState(false);
+  const bumpTimeout = useRef(null);
+
+  const loadUser = useCallback(async () => {
+    const res = await fetch('/api/user/me');
+    if (!res.ok) {
+      router.replace('/login');
+      return;
+    }
+    const data = await res.json();
+    setUser(data.user);
+    setTransactions(data.transactions);
+    setLoading(false);
+  }, [router]);
+
+  useEffect(() => { loadUser(); }, [loadUser]);
+
+  useEffect(() => {
+    if (secondsLeft <= 0) return;
+    const t = setTimeout(() => setSecondsLeft((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [secondsLeft]);
+
+  async function startAd() {
+    setMessage('');
+    const res = await fetch('/api/ad/start', { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) {
+      setMessage(data.error || 'Error al iniciar el anuncio.');
+      return;
+    }
+    setAdSessionId(data.adSessionId);
+    setSecondsLeft(MIN_SECONDS);
+  }
+
+  async function claimAd() {
+    if (!adSessionId) return;
+    setMessage('');
+    const res = await fetch('/api/ad/claim', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ adSessionId }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setMessage(data.error || 'No se pudo reclamar.');
+      return;
+    }
+    setMessage(`¡Ganaste ${data.pointsAwarded} puntos!`);
+    setAdSessionId(null);
+    setBump(true);
+    clearTimeout(bumpTimeout.current);
+    bumpTimeout.current = setTimeout(() => setBump(false), 400);
+    loadUser();
+  }
+
+  async function handleRedeem(e) {
+    e.preventDefault();
+    setMessage('');
+    const res = await fetch('/api/redeem', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ points: redeemPoints, description: redeemDesc }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setMessage(data.error || 'Error al canjear.');
+      return;
+    }
+    setMessage('¡Canje realizado!');
+    setRedeemDesc('');
+    setRedeemPoints('');
+    loadUser();
+  }
+
+  async function handleLogout() {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    router.replace('/login');
+  }
+
+  if (loading) return <div className="container"><p>Cargando...</p></div>;
+
+  const ready = adSessionId && secondsLeft <= 0;
+  const progress = adSessionId ? (MIN_SECONDS - secondsLeft) / MIN_SECONDS : 0;
+  const dashOffset = CIRCUMFERENCE * (1 - progress);
+
+  return (
+    <div className="container with-bottom-nav">
+      <div className="header">
+        <h1>Hola, {user.username}</h1>
+        <span className="points-pill">★ {user.points}</span>
+      </div>
+
+      {tab === 'ganar' && (
+        <div className="card">
+          <p className={`points${bump ? ' bump' : ''}`}>{user.points}</p>
+          <p className="points-label">puntos acumulados</p>
+
+          <div className="ad-ring-wrap">
+            <div className="ad-ring">
+              <svg width="160" height="160" viewBox="0 0 160 160">
+                <circle className="ad-ring-track" cx="80" cy="80" r={RADIUS} strokeWidth="10" fill="none" />
+                <circle
+                  className={`ad-ring-progress${ready ? ' ready' : ''}`}
+                  cx="80" cy="80" r={RADIUS} strokeWidth="10" fill="none"
+                  strokeDasharray={CIRCUMFERENCE}
+                  strokeDashoffset={adSessionId ? dashOffset : CIRCUMFERENCE}
+                />
+              </svg>
+              <div className="ad-ring-center">
+                {adSessionId && !ready && (
+                  <>
+                    <span className="ad-ring-number">{secondsLeft}</span>
+                    <span className="ad-ring-sub">segundos</span>
+                  </>
+                )}
+                {ready && (
+                  <>
+                    <span className="ad-ring-number">✓</span>
+                    <span className="ad-ring-sub">listo</span>
+                  </>
+                )}
+                {!adSessionId && (
+                  <>
+                    <span className="ad-ring-number">▶</span>
+                    <span className="ad-ring-sub">anuncio</span>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {!adSessionId && (
+              <button className="ad-cta" onClick={startAd}>Ver anuncio</button>
+            )}
+            {ready && (
+              <div className="ad-cta pulse">
+                <button className="gold" onClick={claimAd}>Reclamar puntos</button>
+              </div>
+            )}
+          </div>
+
+          {message && <p className="message">{message}</p>}
+        </div>
+      )}
+
+      {tab === 'referidos' && (
+        <div className="card placeholder-card">
+          <div className="placeholder-icon">👥</div>
+          <h2>Referidos</h2>
+          <p className="placeholder-text">
+            Estamos armando el sistema de invitaciones: vas a tener tu link propio
+            y vas a sumar puntos por cada persona que se registre e interactúe.
+          </p>
+          <span className="soon-badge">Próximamente</span>
+        </div>
+      )}
+
+      {tab === 'ranking' && (
+        <div className="card placeholder-card">
+          <div className="placeholder-icon">🏆</div>
+          <h2>Ranking</h2>
+          <p className="placeholder-text">
+            Pronto vas a poder ver la tabla de los usuarios con más puntos
+            del día, la semana y el mes.
+          </p>
+          <span className="soon-badge">Próximamente</span>
+        </div>
+      )}
+
+      {tab === 'perfil' && (
+        <>
+          <div className="card profile-card">
+            <div className="profile-avatar">{user.username.slice(0, 1).toUpperCase()}</div>
+            <h1 className="profile-name">{user.username}</h1>
+            <p className="profile-points">★ {user.points} puntos</p>
+            <button onClick={handleLogout} className="secondary">Cerrar sesión</button>
+          </div>
+
+          <div className="card">
+            <h2>Canjear puntos</h2>
+            <form onSubmit={handleRedeem}>
+              <label>Puntos a canjear</label>
+              <input type="number" min="1" value={redeemPoints} onChange={(e) => setRedeemPoints(e.target.value)} required />
+              <label>Descripción del premio</label>
+              <input value={redeemDesc} onChange={(e) => setRedeemDesc(e.target.value)} required />
+              <button type="submit">Canjear</button>
+            </form>
+            {message && <p className="message">{message}</p>}
+          </div>
+
+          <div className="card">
+            <h2>Historial</h2>
+            <ul className="tx-list">
+              {transactions.map((t) => (
+                <li key={t.id} className={t.delta >= 0 ? 'positive' : 'negative'}>
+                  <span>{t.reason}</span>
+                  <span>{t.delta > 0 ? '+' : ''}{t.delta}</span>
+                </li>
+              ))}
+              {transactions.length === 0 && <li>Sin movimientos todavía.</li>}
+            </ul>
+          </div>
+        </>
+      )}
+
+      <BottomNav active={tab} onChange={setTab} />
+    </div>
+  );
+}
