@@ -21,6 +21,8 @@ export default function Dashboard() {
   const bumpTimeout = useRef(null);
   const [referral, setReferral] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [ranking, setRanking] = useState(null);
+  const [rankPeriod, setRankPeriod] = useState('today');
 
   const loadUser = useCallback(async () => {
     const res = await fetch('/api/user/me');
@@ -55,6 +57,17 @@ export default function Dashboard() {
       setTimeout(() => setCopied(false), 2000);
     });
   }
+
+  const loadRanking = useCallback(async (period) => {
+    const res = await fetch(`/api/user/ranking?period=${period}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    setRanking(data);
+  }, []);
+
+  useEffect(() => {
+    if (tab === 'ranking') loadRanking(rankPeriod);
+  }, [tab, rankPeriod, loadRanking]);
 
   useEffect(() => {
     if (secondsLeft <= 0) return;
@@ -285,14 +298,42 @@ export default function Dashboard() {
       )}
 
       {tab === 'ranking' && (
-        <div className="card placeholder-card">
-          <div className="placeholder-icon">🏆</div>
+        <div className="card">
           <h2>Ranking</h2>
-          <p className="placeholder-text">
-            Pronto vas a poder ver la tabla de los usuarios con más puntos
-            del día, la semana y el mes.
-          </p>
-          <span className="soon-badge">Próximamente</span>
+          <div className="period-tabs">
+            {[['today', 'Hoy'], ['week', 'Semana'], ['month', 'Mes']].map(([key, label]) => (
+              <button
+                key={key}
+                className={`period-tab${rankPeriod === key ? ' active' : ''}`}
+                onClick={() => setRankPeriod(key)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {ranking && (
+            <>
+              <ul className="rank-list">
+                {ranking.top.map((r, i) => (
+                  <li key={r.id} className={`rank-row${r.id === user.id ? ' me' : ''}`}>
+                    <span className="rank-pos">{i + 1}</span>
+                    <span className="rank-name">{r.username}</span>
+                    <span className="rank-points">★ {r.earned}</span>
+                  </li>
+                ))}
+                {ranking.top.length === 0 && <li className="rank-row">Todavía no hay puntos ganados en este período.</li>}
+              </ul>
+
+              {ranking.me.rank && ranking.me.rank > 10 && (
+                <div className="rank-me-footer">
+                  <span>Tu posición</span>
+                  <span className="rank-pos">#{ranking.me.rank}</span>
+                  <span className="rank-points">★ {ranking.me.earned}</span>
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
 
