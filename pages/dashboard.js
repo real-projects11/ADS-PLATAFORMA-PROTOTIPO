@@ -19,6 +19,8 @@ export default function Dashboard() {
   const [redeemPoints, setRedeemPoints] = useState('');
   const [bump, setBump] = useState(false);
   const bumpTimeout = useRef(null);
+  const [referral, setReferral] = useState(null);
+  const [copied, setCopied] = useState(false);
 
   const loadUser = useCallback(async () => {
     const res = await fetch('/api/user/me');
@@ -33,6 +35,26 @@ export default function Dashboard() {
   }, [router]);
 
   useEffect(() => { loadUser(); }, [loadUser]);
+
+  const loadReferral = useCallback(async () => {
+    const res = await fetch('/api/user/referrals');
+    if (!res.ok) return;
+    const data = await res.json();
+    setReferral(data);
+  }, []);
+
+  useEffect(() => {
+    if (tab === 'referidos' && !referral) loadReferral();
+  }, [tab, referral, loadReferral]);
+
+  function copyReferralLink() {
+    if (!referral) return;
+    const link = `${window.location.origin}/register?ref=${referral.referralId}`;
+    navigator.clipboard.writeText(link).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
 
   useEffect(() => {
     if (secondsLeft <= 0) return;
@@ -163,15 +185,52 @@ export default function Dashboard() {
       )}
 
       {tab === 'referidos' && (
-        <div className="card placeholder-card">
-          <div className="placeholder-icon">👥</div>
-          <h2>Referidos</h2>
-          <p className="placeholder-text">
-            Estamos armando el sistema de invitaciones: vas a tener tu link propio
-            y vas a sumar puntos por cada persona que se registre e interactúe.
-          </p>
-          <span className="soon-badge">Próximamente</span>
-        </div>
+        <>
+          <div className="card">
+            <h2>Invitá amigos</h2>
+            <p className="placeholder-text">
+              Ganás {' '}<strong>5 puntos</strong> cuando la persona que invitaste
+              ve su primer anuncio.
+            </p>
+            {referral && (
+              <>
+                <div className="ref-link-box">
+                  <span>{`${typeof window !== 'undefined' ? window.location.origin : ''}/register?ref=${referral.referralId}`}</span>
+                </div>
+                <button onClick={copyReferralLink}>{copied ? '¡Copiado!' : 'Copiar link'}</button>
+              </>
+            )}
+          </div>
+
+          {referral && (
+            <div className="card">
+              <h2>Tus invitados</h2>
+              <div className="ref-stats">
+                <div className="ref-stat">
+                  <span className="ref-stat-number">{referral.totalInvited}</span>
+                  <span className="ref-stat-label">Invitados</span>
+                </div>
+                <div className="ref-stat">
+                  <span className="ref-stat-number ref-active">{referral.totalActive}</span>
+                  <span className="ref-stat-label">Activos</span>
+                </div>
+                <div className="ref-stat">
+                  <span className="ref-stat-number ref-inactive">{referral.totalInactive}</span>
+                  <span className="ref-stat-label">Inactivos</span>
+                </div>
+              </div>
+              <ul className="tx-list">
+                {referral.invited.map((r, i) => (
+                  <li key={i} className={r.active ? 'positive' : 'negative'}>
+                    <span>{r.username}</span>
+                    <span>{r.active ? 'Activo' : 'Inactivo'}</span>
+                  </li>
+                ))}
+                {referral.invited.length === 0 && <li>Todavía no invitaste a nadie.</li>}
+              </ul>
+            </div>
+          )}
+        </>
       )}
 
       {tab === 'ranking' && (
