@@ -11,7 +11,7 @@ export default function Dashboard() {
   const [user, setUser] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState('ganar');
+  const [tab, setTab] = useState('home');
   const [adSessionId, setAdSessionId] = useState(null);
   const [secondsLeft, setSecondsLeft] = useState(0);
   const [message, setMessage] = useState('');
@@ -134,6 +134,47 @@ export default function Dashboard() {
         </div>
         <span className="points-pill">★ {user.points}</span>
       </div>
+
+      {tab === 'home' && (
+        <div className="card hero-card">
+          <p className="points-label" style={{ marginBottom: 4 }}>Balance total</p>
+          <p className="points">{user.points}</p>
+          <p className="points-label">puntos</p>
+
+          <div className="quick-grid">
+            <button className="quick-item" onClick={() => setTab('ganar')}>
+              <span className="quick-icon quick-icon-gold">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M6 4 19 12 6 20Z" fill="#1a1305" /></svg>
+              </span>
+              Ganar
+            </button>
+            <button className="quick-item" onClick={() => setTab('referidos')}>
+              <span className="quick-icon quick-icon-violet">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <circle cx="9" cy="8" r="3" fill="#fff" /><path d="M3.5 19c0-3.3 2.5-5.6 5.5-5.6s5.5 2.3 5.5 5.6" stroke="#fff" strokeWidth="1.6" fill="none" strokeLinecap="round" />
+                </svg>
+              </span>
+              Referidos
+            </button>
+            <button className="quick-item" onClick={() => setTab('ranking')}>
+              <span className="quick-icon quick-icon-coral">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <rect x="3.5" y="12" width="4.5" height="8" fill="#fff" /><rect x="9.75" y="7" width="4.5" height="13" fill="#fff" /><rect x="16" y="3" width="4.5" height="17" fill="#fff" />
+                </svg>
+              </span>
+              Ranking
+            </button>
+            <button className="quick-item" onClick={() => setTab('perfil')}>
+              <span className="quick-icon quick-icon-green">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="8" r="3.4" fill="#fff" /><path d="M4.5 20c0-4.1 3.4-7 7.5-7s7.5 2.9 7.5 7" fill="#fff" />
+                </svg>
+              </span>
+              Perfil
+            </button>
+          </div>
+        </div>
+      )}
 
       {tab === 'ganar' && (
         <div className="card hero-card">
