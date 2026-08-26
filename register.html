@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Crear cuenta — Puntos por Anuncios</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>Crear cuenta</h1>
+    <p id="ref-note" class="ref-note" style="display:none;"></p>
+    <form id="register-form" class="card">
+      <label>Usuario</label>
+      <input id="username" required minlength="3" />
+      <label>Contraseña</label>
+      <input id="password" type="password" required minlength="6" />
+      <p id="error" class="error" style="display:none;"></p>
+      <button id="submit-btn" type="submit">Registrarme</button>
+    </form>
+    <p>¿Ya tenés cuenta? <a href="/login">Iniciá sesión</a></p>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('ref');
+    if (ref) {
+      const note = document.getElementById('ref-note');
+      note.textContent = `Te invitó el usuario #${ref} 🎉`;
+      note.style.display = 'block';
+    }
+
+    const form = document.getElementById('register-form');
+    const errorEl = document.getElementById('error');
+    const btn = document.getElementById('submit-btn');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errorEl.style.display = 'none';
+      btn.disabled = true;
+      btn.textContent = 'Creando...';
+
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+
+      try {
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password, ref }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          errorEl.textContent = data.error || 'Error al registrarse.';
+          errorEl.style.display = 'block';
+          btn.disabled = false;
+          btn.textContent = 'Registrarme';
+          return;
+        }
+        window.location.replace('/dashboard');
+      } catch {
+        errorEl.textContent = 'Error de conexión.';
+        errorEl.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Registrarme';
+      }
+    });
+  </script>
+</body>
+</html>
